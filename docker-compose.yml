@@ -6,4 +6,13 @@ services:
     image: scan-time-normalizer:latest
     ports:
       - "8000:8000"
+    environment:
+      # Named volume mount point; timeline jobs, their registry and result
+      # files live here so they survive container restarts.
+      TIMELINE_DATA_DIR: /data
+    volumes:
+      - timeline-data:/data
     restart: unless-stopped
+
+volumes:
+  timeline-data:

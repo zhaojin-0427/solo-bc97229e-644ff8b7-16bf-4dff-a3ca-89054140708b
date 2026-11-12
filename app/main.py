@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Body, FastAPI
@@ -17,6 +18,8 @@ from .schemas import (
     RecordOut,
     Summary,
 )
+from .timeline.api import router as timeline_router
+from .timeline.store import get_store
 
 DESCRIPTION = """
 Normalize carrier-exported local scan times to UTC under IANA timezone rules.
@@ -67,11 +70,25 @@ DEMO_CONFLICTING_LINKS = {
     ],
 }
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Build the registry eagerly so interrupted jobs are recovered at startup.
+    store = get_store()
+    try:
+        yield
+    finally:
+        store.shutdown()
+
+
 app = FastAPI(
     title="Scan Time Normalizer",
     description=DESCRIPTION,
     version="1.0.0",
+    lifespan=lifespan,
 )
+
+app.include_router(timeline_router)
 
 
 @app.get("/", include_in_schema=False)
@@ -80,6 +97,7 @@ def root() -> dict:
         "service": "scan-time-normalizer",
         "docs": "/docs",
         "normalize": "POST /normalize",
+        "timeline_jobs": "POST /timeline/jobs",
         "health": "/healthz",
     }
 
